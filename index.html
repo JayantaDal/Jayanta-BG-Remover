@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Remover</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        .hidden { display: none; }
+        .preview-img { max-width: 100%; margin-top: 10px; border: 2px solid #ddd; padding: 5px; }
+        .progress-bar { width: 100%; background: #ddd; border-radius: 5px; margin-top: 10px; }
+        .progress { width: 0%; height: 10px; background: green; border-radius: 5px; }
+        button, input { margin: 10px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>Background Remover</h2>
+    <div class="container">
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="removeBackground()">Remove Background</button>
+        
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
+        
+        <p id="statusMessage"></p>
+
+        <img id="outputImage" class="preview-img hidden">
+        <input type="color" id="bgColorPicker" class="hidden">
+        <button id="downloadBtn" class="hidden" onclick="downloadImage()">Download HD Image</button>
+    </div>
+
+    <script>
+        function removeBackground() {
+            let fileInput = document.getElementById("imageInput");
+            if (!fileInput.files.length) {
+                alert("Please select an image first.");
+                return;
+            }
+
+            let file = fileInput.files[0];
+            let formData = new FormData();
+            formData.append("image_file", file);
+            formData.append("size", "auto");
+
+            let statusMessage = document.getElementById("statusMessage");
+            let progressBar = document.getElementById("progress");
+
+            statusMessage.innerText = "Processing...";
+            progressBar.style.width = "0%";
+
+            let fakeProgress = 0;
+            let progressInterval = setInterval(() => {
+                fakeProgress += 10;
+                progressBar.style.width = fakeProgress + "%";
+                if (fakeProgress >= 90) clearInterval(progressInterval);
+            }, 500);
+
+            fetch("https://api.remove.bg/v1.0/removebg", {
+                method: "POST",
+                headers: { "X-Api-Key": "3qRWpRSzvckGvc5Am5Wu6Eys" },
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                clearInterval(progressInterval);
+                progressBar.style.width = "100%";
+                statusMessage.innerText = "Background removed successfully!";
+
+                let imageUrl = URL.createObjectURL(blob);
+                let outputImage = document.getElementById("outputImage");
+                outputImage.src = imageUrl;
+                outputImage.classList.remove("hidden");
+
+                document.getElementById("bgColorPicker").classList.remove("hidden");
+                document.getElementById("downloadBtn").classList.remove("hidden");
+            })
+            .catch(error => {
+                clearInterval(progressInterval);
+                statusMessage.innerText = "Error: " + error.message;
+            });
+        }
+
+        function downloadImage() {
+            let outputImage = document.getElementById("outputImage");
+            let link = document.createElement("a");
+            link.href = outputImage.src;
+            link.download = "background_removed.png";
+            link.click();
+        }
+    </script>
+
+</body>
+</html>
