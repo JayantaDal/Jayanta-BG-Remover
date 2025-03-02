@@ -1,9 +1,8 @@
-
 <html lang="en">
 <head>
-  <meta charset="UTF-8"></meta>
-  <meta content="width=device-width, initial-scale=1.0" name="viewport"></meta>
-  <title></title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remove BG</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -63,14 +62,14 @@
 <body>
   <h1></h1>
   <div class="container">
-    <input accept="image/*" id="imageInput" type="file" />
+    <input accept="image/*" id="imageInput" type="file">
     <div class="controls hidden" id="controls">
       <button id="removeBackgroundBtn">Remove Background</button>
-      <input id="bgColorPicker" type="color" value="#ffffff" />
+      <input id="bgColorPicker" type="color" value="#ffffff">
       <button id="applyBgColorBtn">Apply Background Color</button>
       <button id="downloadBtn">Download Image</button>
     </div>
-    <img alt="Preview" class="hidden" id="previewImage" />
+    <img alt="Preview" class="hidden" id="previewImage">
     <p class="message hidden" id="message"></p>
   </div>
 
@@ -165,20 +164,73 @@
     });
 
     // Download the processed image
-    downloadBtn.addEventListener("click", () => {
+    downloadBtn.addEventListener("click", async () => {
       if (!previewImage.src) return;
 
-      const link = document.createElement("a");
-      link.href = previewImage.src; // Use the current image with or without custom background
-      link.download = "background_removed_image.png"; // File name
-      document.body.appendChild(link); // Append to DOM (required for Firefox)
-      link.click();
-      document.body.removeChild(link); // Clean up
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
 
-      // Show success message
-      message.textContent = "Image Downloaded Successfully!";
-      message.classList.remove("hidden");
+      img.onload = async () => {
+        // Set canvas dimensions to the original image dimensions
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0, img.width, img.height);
+
+        //Attempt to download as PNG for highest quality
+        let dataURL = canvas.toDataURL("image/png");
+        let fileSizeKB = dataURLToKilobytes(dataURL);
+
+        //If the image is still small (likely a small source image)
+        //allow JPG download with iterative quality control.
+        if (fileSizeKB < 300) {
+          dataURL = canvas.toDataURL("image/jpeg", 0.95); // Start with high quality
+          fileSizeKB = dataURLToKilobytes(dataURL);
+
+          let quality = 0.95; // Initial quality
+          while (fileSizeKB < 300 && quality > 0.1) {
+            quality -= 0.05; // Reduce quality by 5% each time
+            dataURL = canvas.toDataURL("image/jpeg", quality);
+            fileSizeKB = dataURLToKilobytes(dataURL);
+          }
+
+          if (fileSizeKB < 300) {
+            alert(
+              "Warning: Could not achieve 300KB minimum size even at low quality. Image might be small. Current Size: " +
+                fileSizeKB +
+                "KB"
+            );
+          }
+        }
+
+        const link = document.createElement("a");
+        link.href = dataURL; // Use the current image with or without custom background
+        link.download = "background_removed_image.png"; // File name - force png name since we try png first
+        document.body.appendChild(link); // Append to DOM (required for Firefox)
+        link.click();
+        document.body.removeChild(link); // Clean up
+
+        // Show success message
+        message.textContent = "Image Downloaded Successfully!";
+        message.classList.remove("hidden");
+      };
+
+      img.src = previewImage.src;
     });
+
+    // Helper function to calculate data URL size in kilobytes
+    function dataURLToKilobytes(dataURL) {
+      const stringLength = dataURL.length - "data:image/png;base64,".length;
+      const padding =
+        dataURL.charAt(dataURL.length - 2) == "="
+          ? 2
+          : dataURL.charAt(dataURL.length - 1) == "="
+          ? 1
+          : 0;
+      const byteLength = stringLength * 0.75 * (4 / 3);
+      const kilobytes = byteLength / 1024;
+      return kilobytes;
+    }
   </script>
 </body>
 </html>
